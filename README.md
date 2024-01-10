@@ -25,6 +25,15 @@ go run ./dev/pr-auditor/ check \
 ./dev/buildchecker/check-pr.sh
 ```
 
+## Opting out of checks
+
+Each check that PR auditor performs can be opted out of a repository level if they are inappropriate for your use cases. Simply set the relevant environment variable in your GitHub Action to a falsey value like `False` or `false`. By default all checks are enabled.
+
+| Environment Variable | Check Description                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| SKIP_CHECK_TEST_PLAN | Allows PRs to not include the Test Plan section. Useful for repositories which do not include source code (such as documentation repos). |
+| SKIP_CHECK_REVIEWS   | Allows PRs to be merged without requiring reviews. Useful for repositories which are entirely automated (such as infrastructure code).   |
+
 ## Deployment
 
 `pr-auditor` can be deployed to repositories using the available [batch changes](./batch-changes/README.md).
