@@ -16,14 +16,24 @@ GITHUB_EVENT_PATH="/path/to/json/payload.json"
 GITHUB_TOKEN="personal-access-token"
 
 # run directly
-go run ./dev/pr-auditor/ check \
+go run . \
   -github.payload-path="$GITHUB_EVENT_PATH" \
   -github.token="$GITHUB_TOKEN" \
-  -protected-branch="release"
+  -protected-branch="release" \
+  -skip-check-test-plan=true
 
 # run using wrapper script
-./dev/buildchecker/check-pr.sh
+./check-pr.sh
 ```
+
+## Opting out of checks
+
+Each check that PR auditor performs can be opted out of a repository level if they are inappropriate for your use cases. Simply set the relevant environment variable in your GitHub Action to a truthy value like `True` or `true`. By default all checks are enabled.
+
+| Environment Variable | Check Description                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| SKIP_CHECK_TEST_PLAN | Allows PRs to not include the Test Plan section. Useful for repositories which do not include source code (such as documentation repos). |
+| SKIP_CHECK_REVIEWS   | Allows PRs to be merged without requiring reviews. Useful for repositories which are entirely automated (such as infrastructure code).   |
 
 ## Deployment
 
