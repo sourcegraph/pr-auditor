@@ -33,8 +33,9 @@ type Flags struct {
 	// SkipStatus if true will skip updating commit status on GitHub and just record exceptions. Useful when crawling through failed runs caused by infrastructure issues.
 	SkipStatus bool
 
-	SkipCheckTestPlan bool
-	SkipCheckReview   bool
+	SkipCheckTestPlan       bool
+	SkipCheckReview         bool
+	SkipCheckReviewForUsers string
 }
 
 func (f *Flags) Parse() {
@@ -48,6 +49,7 @@ func (f *Flags) Parse() {
 	flag.BoolVar(&f.SkipStatus, "skip-status", false, "skip updating commit status on GitHub and just record exceptions")
 	flag.BoolVar(&f.SkipCheckTestPlan, "skip-check-test-plan", false, "Allows PRs without a test plan to pass audit")
 	flag.BoolVar(&f.SkipCheckReview, "skip-check-review", false, "Allows PRs without any approving reviews to be merged")
+	flag.StringVar(&f.SkipCheckReviewForUsers, "skip-check-review-for-users", "", "Allows PRs without any approving reviews to be merged if submitted by the specified users")
 	flag.Parse()
 }
 
@@ -119,11 +121,12 @@ const (
 )
 
 func postMergeAudit(ctx context.Context, ghc *github.Client, payload *EventPayload, flags *Flags) error {
-	result := checkPR(ctx, ghc, payload, checkOpts{
-		SkipReviews:     flags.SkipCheckReview,
-		SkipTestPlan:    flags.SkipCheckTestPlan,
-		ProtectedBranch: flags.ProtectedBranch,
-	})
+	result := checkPR(payload, checkOpts{
+		SkipReviews:        flags.SkipCheckReview,
+		SkipReviewForUsers: flags.SkipCheckReviewForUsers,
+		SkipTestPlan:       flags.SkipCheckTestPlan,
+		ProtectedBranch:    flags.ProtectedBranch,
+	}, GithubApprovalChecker{client: ghc, ctx: ctx})
 	log.Printf("checkPR: %+v\n", result)
 
 	if result.IsSatisfied() {
@@ -180,11 +183,11 @@ func postMergeAudit(ctx context.Context, ghc *github.Client, payload *EventPaylo
 }
 
 func preMergeAudit(ctx context.Context, ghc *github.Client, payload *EventPayload, flags *Flags) error {
-	result := checkPR(ctx, ghc, payload, checkOpts{
+	result := checkPR(payload, checkOpts{
 		SkipReviews:     true, // only validate reviews on post-merge
 		SkipTestPlan:    flags.SkipCheckTestPlan,
 		ProtectedBranch: flags.ProtectedBranch,
-	})
+	}, GithubApprovalChecker{client: ghc, ctx: ctx})
 	log.Printf("checkPR: %+v\n", result)
 
 	var prState, stateDescription string
