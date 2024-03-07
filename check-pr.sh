@@ -8,4 +8,4 @@ go run . \
   -github.run-url="$GITHUB_RUN_URL" \
   -skip-check-test-plan="${SKIP_CHECK_TEST_PLAN:-False}" \
   -skip-check-review="${SKIP_CHECK_REVIEWS:-False}" \
-  -skip-check-review-for-users="${SKIP_CHECK_REVIEWS_FOR_USERS}"
+  -skip-check-review-for-users="${SKIP_CHECK_REVIEWS_FOR_USERS:""}"
