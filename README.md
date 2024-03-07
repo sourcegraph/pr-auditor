@@ -30,10 +30,11 @@ go run . \
 
 Each check that PR auditor performs can be opted out of a repository level if they are inappropriate for your use cases. Simply set the relevant environment variable in your GitHub Action to a truthy value like `True` or `true`. By default all checks are enabled.
 
-| Environment Variable | Check Description                                                                                                                        |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| SKIP_CHECK_TEST_PLAN | Allows PRs to not include the Test Plan section. Useful for repositories which do not include source code (such as documentation repos). |
-| SKIP_CHECK_REVIEWS   | Allows PRs to be merged without requiring reviews. Useful for repositories which are entirely automated (such as infrastructure code).   |
+| Environment Variable         | Check Description                                                                                                                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SKIP_CHECK_TEST_PLAN         | Allows PRs to not include the Test Plan section. Useful for repositories which do not include source code (such as documentation repos).                                                                               |
+| SKIP_CHECK_REVIEWS           | Allows PRs to be merged without requiring reviews. Useful for repositories which are entirely automated (such as infrastructure code).                                                                                 |
+| SKIP_CHECK_REVIEWS_FOR_USERS | Allows PRs to be merged without requiring reviews for the specified users. Useful for repositories which have a clear owner(s). Format is CSV of GitHub handles. _Note: This has no effect if SKIP_CHECK_REVIEWS=true_ |
 
 ## Deployment
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
@@ -13,13 +12,15 @@ import (
 
 func TestCheckTestPlan(t *testing.T) {
 	tests := []struct {
-		name            string
-		bodyFile        string
-		labels          []string
-		baseBranch      string
-		protectedBranch string
-		canSkipTestPlan bool
-		want            checkResult
+		name               string
+		bodyFile           string
+		labels             []string
+		baseBranch         string
+		protectedBranch    string
+		canSkipTestPlan    bool
+		skipReviewForUsers string
+		want               checkResult
+		reviews            int
 	}{
 		{
 			name:     "has test plan",
@@ -123,17 +124,17 @@ And a little complicated; there's also the following reasons:
 			},
 		},
 		{
-			name:     "no review required via automerge label but no plan",
-			bodyFile: "testdata/pull_request_body/no-plan.md",
-			labels:   []string{"automerge"},
+			name:               "no review required via user-specific skip",
+			bodyFile:           "testdata/pull_request_body/no-plan.md",
+			skipReviewForUsers: "foo,user,bar",
 			want: checkResult{
-				ReviewSatisfied: false,
+				ReviewSatisfied: true,
 			},
 		},
 		{
-			name:     "no review required via no-review-required label but no plan",
-			bodyFile: "testdata/pull_request_body/no-plan.md",
-			labels:   []string{"no-review-required"},
+			name:               "no review required but user not matched in skip",
+			bodyFile:           "testdata/pull_request_body/no-plan.md",
+			skipReviewForUsers: "foo,bar",
 			want: checkResult{
 				ReviewSatisfied: false,
 			},
@@ -156,6 +157,15 @@ And a little complicated; there's also the following reasons:
 				CanSkipTestPlan: true,
 			},
 		},
+		{
+			name:     "has test plan and is actually reviewed",
+			bodyFile: "testdata/pull_request_body/has-plan.md",
+			reviews:  1,
+			want: checkResult{
+				ReviewSatisfied: true,
+				TestPlan:        "I have a plan!",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -164,9 +174,12 @@ And a little complicated; there's also the following reasons:
 
 			payload := &EventPayload{
 				PullRequest: PullRequestPayload{
-					Body: string(body),
+					Body:           string(body),
+					User:           UserPayload{Login: "user"},
+					ReviewComments: tt.reviews,
 				},
 			}
+
 			if tt.labels != nil {
 				payload.PullRequest.Labels = make([]Label, len(tt.labels))
 				for i, label := range tt.labels {
@@ -174,8 +187,8 @@ And a little complicated; there's also the following reasons:
 				}
 			}
 			checkOpts := checkOpts{
-				SkipReviews:  true,
-				SkipTestPlan: tt.canSkipTestPlan,
+				SkipReviewForUsers: tt.skipReviewForUsers,
+				SkipTestPlan:       tt.canSkipTestPlan,
 			}
 
 			if tt.baseBranch != "" && tt.protectedBranch != "" {
@@ -183,7 +196,7 @@ And a little complicated; there's also the following reasons:
 				checkOpts.ProtectedBranch = tt.protectedBranch
 			}
 
-			got := checkPR(context.Background(), nil, payload, checkOpts)
+			got := checkPR(payload, checkOpts, MockApprovalChecker{})
 			assert.Equal(t, tt.want.IsTestPlanSatisfied(), got.IsTestPlanSatisfied())
 			t.Log("got.TestPlan: ", got.TestPlan)
 			if tt.want.TestPlan == "" {
@@ -196,4 +209,10 @@ And a little complicated; there's also the following reasons:
 			assert.Equal(t, tt.want.ReviewSatisfied, got.ReviewSatisfied)
 		})
 	}
+}
+
+type MockApprovalChecker struct{}
+
+func (MockApprovalChecker) IsApproved(payload EventPayload) bool {
+	return false
 }

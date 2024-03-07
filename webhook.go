@@ -35,6 +35,8 @@ type PullRequestPayload struct {
 
 	Base RefPayload `json:"base"`
 	Head RefPayload `json:"head"`
+
+	User UserPayload `json:"user"`
 }
 
 type Label struct {

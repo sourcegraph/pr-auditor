@@ -38,33 +38,65 @@ var (
 
 	markdownCommentRegexp = regexp.MustCompile("<!--((.|\n)*?)-->(\n)*")
 
-	noReviewNeedLabels = []string{"no-review-required", "automerge"}
+	noReviewNeededLabels = []string{"no-review-required", "automerge"}
 )
 
 type checkOpts struct {
-	SkipReviews     bool
-	SkipTestPlan    bool
-	ProtectedBranch string
+	SkipReviews        bool
+	SkipReviewForUsers string
+	SkipTestPlan       bool
+	ProtectedBranch    string
 }
 
 func isProtectedBranch(payload *EventPayload, protectedBranch string) bool {
 	return protectedBranch != "" && payload.PullRequest.Base.Ref == protectedBranch
 }
 
-func checkPR(ctx context.Context, ghc *github.Client, payload *EventPayload, opts checkOpts) checkResult {
+func isReviewSatisfied(payload *EventPayload, opts checkOpts, checker ApprovalChecker) bool {
+	pr := payload.PullRequest
+
+	if opts.SkipReviews {
+		return true
+	}
+
+	if opts.SkipReviewForUsers != "" {
+		isPRAuthorExcluded := slices.Contains(strings.Split(opts.SkipReviewForUsers, ","), pr.User.Login)
+
+		if isPRAuthorExcluded {
+			return true
+		}
+	}
+
+	// If the PR has explicit review comments, great we're done
+	if pr.ReviewComments > 0 {
+		return true
+	}
+
+	// Look for no review required explanation in the body
+	if sections := noReviewNeededDividerRegexp.Split(pr.Body, 2); len(sections) > 1 {
+		noReviewRequiredExplanation := cleanMarkdown(sections[1])
+		if len(noReviewRequiredExplanation) > 0 {
+			return true
+		}
+	}
+
+	// Look for no review required labels
+	for _, label := range pr.Labels {
+		if slices.Contains(noReviewNeededLabels, label.Name) {
+			return true
+		}
+	}
+
+	// Else we have to check for an approval through the GitHub API
+	return checker.IsApproved(*payload)
+}
+
+func checkPR(payload *EventPayload, opts checkOpts, checker ApprovalChecker) checkResult {
 	pr := payload.PullRequest
 
 	// Whether or not this PR was reviewed can be inferred from payload, but an approval
 	// might not have any comments so we need to double-check through the GitHub API
-	var err error
-	reviewed := pr.ReviewComments > 0
-	if !reviewed && !opts.SkipReviews {
-		owner, repo := payload.Repository.GetOwnerAndName()
-		var reviews []*github.PullRequestReview
-		// Continue, but return err later
-		reviews, _, err = ghc.PullRequests.ListReviews(ctx, owner, repo, payload.PullRequest.Number, &github.ListOptions{})
-		reviewed = len(reviews) > 0
-	}
+	reviewed := isReviewSatisfied(payload, opts, checker)
 
 	// Parse test plan data from body
 	sections := testPlanDividerRegexp.Split(pr.Body, 2)
@@ -72,26 +104,6 @@ func checkPR(ctx context.Context, ghc *github.Client, payload *EventPayload, opt
 		return checkResult{
 			ReviewSatisfied: reviewed,
 			CanSkipTestPlan: opts.SkipTestPlan,
-			Error:           err,
-		}
-	}
-
-	testPlan := cleanMarkdown(sections[1])
-
-	// Look for no review required explanation in the test plan
-	if sections := noReviewNeededDividerRegexp.Split(testPlan, 2); len(sections) > 1 {
-		noReviewRequiredExplanation := cleanMarkdown(sections[1])
-		if len(noReviewRequiredExplanation) > 0 {
-			reviewed = true
-		}
-	}
-
-	if testPlan != "" {
-		for _, label := range pr.Labels {
-			if slices.Contains(noReviewNeedLabels, label.Name) {
-				reviewed = true
-				break
-			}
 		}
 	}
 
@@ -100,9 +112,8 @@ func checkPR(ctx context.Context, ghc *github.Client, payload *EventPayload, opt
 	return checkResult{
 		ReviewSatisfied: reviewed,
 		CanSkipTestPlan: opts.SkipTestPlan,
-		TestPlan:        testPlan,
+		TestPlan:        cleanMarkdown(sections[1]),
 		ProtectedBranch: mergeAgainstProtected,
-		Error:           err,
 	}
 }
 
@@ -114,4 +125,21 @@ func cleanMarkdown(s string) string {
 	content = strings.TrimSpace(content)
 
 	return content
+}
+
+type ApprovalChecker interface {
+	IsApproved(EventPayload) bool
+}
+
+type GithubApprovalChecker struct {
+	client *github.Client
+	ctx    context.Context
+}
+
+func (checker GithubApprovalChecker) IsApproved(payload EventPayload) bool {
+	owner, repo := payload.Repository.GetOwnerAndName()
+	var reviews []*github.PullRequestReview
+
+	reviews, _, _ = checker.client.PullRequests.ListReviews(checker.ctx, owner, repo, payload.PullRequest.Number, &github.ListOptions{})
+	return len(reviews) > 0
 }
