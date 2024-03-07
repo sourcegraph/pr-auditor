@@ -71,6 +71,7 @@ func main() {
 		log.Fatal("Unmarshal: ", err)
 	}
 	log.Printf("handling event for pull request %s, payload: %+v\n", payload.PullRequest.URL, payload.Dump())
+	log.Printf("Full body: %#v", payload)
 
 	// Discard unwanted events
 	switch ref := payload.PullRequest.Base.Ref; ref {
