@@ -39,3 +39,7 @@ Each check that PR auditor performs can be opted out of a repository level if th
 ## Deployment
 
 `pr-auditor` can be deployed to repositories using the available [batch changes](./batch-changes/README.md).
+
+You can also add it to a single repo by copying `pr-auditor.example.yml` to `.github/workflows/pr-auditor.yml`.
+
+You will also need to add the `sourcegraph-bot-devx` user to the repository as a collaborator with write access.
