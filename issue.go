@@ -68,8 +68,8 @@ func generateExceptionIssue(payload *EventPayload, result *checkResult, addition
 
 	labels := append(exceptionLabels, payload.Repository.FullName)
 	return &github.IssueRequest{
-		Title:     github.String(issueTitle),
-		Body:      github.String(issueBody),
+		Title:     new(issueTitle),
+		Body:      new(issueBody),
 		Assignees: &issueAssignees,
 		Labels:    &labels,
 	}
