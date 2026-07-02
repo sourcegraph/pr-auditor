@@ -139,10 +139,10 @@ func postMergeAudit(ctx context.Context, ghc *github.Client, payload *EventPaylo
 	owner, repo := payload.Repository.GetOwnerAndName()
 	if result.Error != nil && !flags.SkipStatus {
 		_, _, statusErr := ghc.Repositories.CreateStatus(ctx, owner, repo, payload.PullRequest.Head.SHA, &github.RepoStatus{
-			Context:     github.String(commitStatusPostMerge),
-			State:       github.String("error"),
-			Description: github.String(fmt.Sprintf("checkPR: %s", result.Error.Error())),
-			TargetURL:   github.String(flags.GitHubRunURL),
+			Context:     new(commitStatusPostMerge),
+			State:       new("error"),
+			Description: new(fmt.Sprintf("checkPR: %s", result.Error.Error())),
+			TargetURL:   new(flags.GitHubRunURL),
 		})
 		if statusErr != nil {
 			return errors.Newf("result.Error != nil (%w), statusErr: %w", result.Error, statusErr)
@@ -154,7 +154,7 @@ func postMergeAudit(ctx context.Context, ghc *github.Client, payload *EventPaylo
 
 	log.Printf("Ensuring label for repository %q\n", payload.Repository.FullName)
 	_, _, err := ghc.Issues.CreateLabel(ctx, flags.IssuesRepoOwner, flags.IssuesRepoName, &github.Label{
-		Name: github.String(payload.Repository.FullName),
+		Name: new(payload.Repository.FullName),
 	})
 	if err != nil {
 		log.Printf("Ignoring error on CreateLabel: %s\n", err)
@@ -171,10 +171,10 @@ func postMergeAudit(ctx context.Context, ghc *github.Client, payload *EventPaylo
 
 	// Let run succeed, create separate status indicating an exception was created
 	_, _, err = ghc.Repositories.CreateStatus(ctx, owner, repo, payload.PullRequest.Head.SHA, &github.RepoStatus{
-		Context:     github.String(commitStatusPostMerge),
-		State:       github.String("failure"),
-		Description: github.String("Exception detected and audit trail issue created"),
-		TargetURL:   github.String(created.GetHTMLURL()),
+		Context:     new(commitStatusPostMerge),
+		State:       new("failure"),
+		Description: new("Exception detected and audit trail issue created"),
+		TargetURL:   new(created.GetHTMLURL()),
 	})
 	if err != nil {
 		return errors.Newf("CreateStatus: %w", err)
@@ -211,10 +211,10 @@ func preMergeAudit(ctx context.Context, ghc *github.Client, payload *EventPayloa
 
 	owner, repo := payload.Repository.GetOwnerAndName()
 	_, _, err := ghc.Repositories.CreateStatus(ctx, owner, repo, payload.PullRequest.Head.SHA, &github.RepoStatus{
-		Context:     github.String(commitStatusPreMerge),
-		State:       github.String(prState),
-		Description: github.String(stateDescription),
-		TargetURL:   github.String(stateURL),
+		Context:     new(commitStatusPreMerge),
+		State:       new(prState),
+		Description: new(stateDescription),
+		TargetURL:   new(stateURL),
 	})
 	if err != nil {
 		return errors.Newf("CreateStatus: %w", err)
